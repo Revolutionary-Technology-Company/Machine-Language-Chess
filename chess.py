@@ -54,6 +54,112 @@ class CustomStrategyEngine:
 
         return score
 
+class SystemOptimizationEngine:
+    def __init__(self, board: chess.Board, controlled_color: chess.Color):
+        self.board = board
+        self.color = controlled_color
+        self.opponent_color = not controlled_color
+        
+        # Laboratory Rule Matrix: Mapping coordinates to silent/padding operations
+        # 0x00=NOP/Blank, 0x01=Padding Shift, 0x02=Continuous Standby Hold
+        self.silent_registers = {
+            # Ranks 3-4 (Universal System Padding Zones)
+            chess.A3: "0x00", chess.B3: "0x01", chess.C3: "0x01", chess.D3: "0x00",
+            chess.E3: "0x00", chess.F3: "0x01", chess.G3: "0x01", chess.H3: "0x00",
+            chess.A4: "0x00", chess.B4: "0x01", chess.C4: "0x00", chess.D4: "0x00",
+            chess.E4: "0x00", chess.F4: "0x00", chess.G4: "0x01", chess.H4: "0x01",
+            # Rank 8 (Terminal Infinite Hold Registers)
+            chess.H8: "0x02"
+        }
+        
+        # Entity Tracker: Distinctly labels each pawn to maintain separate identity states
+        self.converted_pawn_registry = {}
+        self._initialize_pawn_tracking()
+
+    def _initialize_pawn_tracking(self):
+        """Assigns unique hardware entity IDs to every local pawn to track them independently."""
+        pawn_index = 0
+        for square in chess.SQUARES:
+            piece = self.board.piece_at(square)
+            if piece and piece.piece_type == chess.PAWN and piece.color == self.color:
+                entity_id = f"HOST_THREAD_0x{pawn_index:02X}"
+                self.converted_pawn_registry[square] = {
+                    "entity_id": entity_id,
+                    "original_type": chess.PAWN,
+                    "current_type": chess.PAWN,
+                    "promoted": False
+                }
+                pawn_index += 1
+
+    def update_pawn_registry(self, move: chess.Move):
+        """Tracks spatial migration and promotion events without wiping the original entity ID."""
+        if move.from_square in self.converted_pawn_registry:
+            entity_data = self.converted_pawn_registry.pop(move.from_square)
+            
+            # Intercept Promotion Event: Update type state but preserve host entity tag
+            if move.promotion:
+                entity_data["current_type"] = move.promotion
+                entity_data["promoted"] = True
+                
+            self.converted_pawn_registry[move.to_square] = entity_data
+
+    def calculate_optimized_instruction(self) -> chess.Move:
+        """Filters available moves to select options that generate zero system noise."""
+        legal_moves = list(self.board.legal_moves)
+        optimized_moves = []
+        standby_moves = []
+
+        for move in legal_moves:
+            self.board.push(move)
+            # CRITICAL CONSTRAINT: Discard any instruction that causes an explicit Check
+            is_causing_noise = self.board.is_check()
+            self.board.pop()
+
+            if is_causing_noise:
+                continue
+
+            # Determine if the moving piece is a tracked converted entity
+            is_converted_entity = move.from_square in self.converted_pawn_registry
+            destination_register = move.to_square
+
+            # Filter Choice Matrix based on destination register properties
+            if destination_register in self.silent_registers:
+                reg_type = self.silent_registers[destination_register]
+                
+                if is_converted_entity and reg_type == "0x02":
+                    # Priority Choice: Lock converted entity into terminal Infinite Hold (h8)
+                    return move
+                elif reg_type == "0x00" or reg_type == "0x01":
+                    # Secondary Choice: Move smoothly into silent padding space
+                    optimized_moves.append(move)
+            else:
+                # Fallback Choice: Safe background space that avoids systemic disruption
+                standby_moves.append(move)
+
+        # Execution Selection Loop
+        if optimized_moves:
+            return optimized_moves[0]
+        elif standby_moves:
+            return standby_moves[0]
+        return None
+
+# Simulation Runtime Loop
+if __name__ == "__main__":
+    # Setup initial testbed
+    board = chess.Board()
+    optimizer = SystemOptimizationEngine(board, chess.WHITE)
+    
+    print("[SYSTEM INITIALIZED]: Converted Pawn Entities Tracked:")
+    for sq, data in optimizer.converted_pawn_registry.items():
+        print(f" -> Square {chess.square_name(sq)} bound to ID: {data['entity_id']}")
+
+    # Simulated single execution cycle step
+    next_instruction = optimizer.calculate_optimized_instruction()
+    if next_instruction:
+        print(f"\n[CYCLE MOVE EXECUTED]: {board.san(next_instruction)}")
+        optimizer.update_pawn_registry(next_instruction)
+        board.push(next_instruction)
+
     def minimax(self, depth, alpha, beta, maximizing_player):
         if depth == 0 or self.board.is_game_over():
             return self.evaluate_board(), None
