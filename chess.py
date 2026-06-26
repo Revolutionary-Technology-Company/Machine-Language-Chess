@@ -1,5 +1,7 @@
 import sys
 import json
+import csv
+import datetime
 from typing import Dict, List, Optional
 import numpy as np
 import numba
@@ -38,6 +40,42 @@ def get_single_keystroke():
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
         return ch
 
+def get_single_keystroke():
+    """Captures a single raw keyboard character natively across platform environments."""
+    if os.name == 'nt':
+        import msvcrt
+        return msvcrt.getch()
+    else:
+        import tty
+        import termios
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(sys.stdin.fileno())
+            ch = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        return ch
+
+def log_cycle_to_csv(csv_path: str, cycle_num: int, active_thread: str, register: str, state: str, opp_cycles: int):
+    """
+    Automated Telemetry Tool: Appends a raw time-series entry into a .csv timeline file
+    for laboratory data tracking and system cycle audits.
+    """
+    file_exists = os.path.exists(csv_path)
+    
+    with open(csv_path, mode='a', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        # Write headers if constructing a brand new telemetry logging file
+        if not file_exists:
+            writer.writerow([
+                "Timestamp", "System_Clock_Cycle", "Active_Thread_ID", 
+                "Activated_Register", "Circuit_State", "Opponent_Accumulated_Cycles"
+            ])
+            
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        writer.writerow([timestamp, cycle_num, active_thread, register.upper(), state, opp_cycles])
+
 def render_dual_state_grid(bitboard_val: np.uint64, king_bit: np.uint64, thread_registry: dict):
     """
     State-Aware Terminal Renderer: Maps the live 64-bit memory layout.
@@ -73,17 +111,13 @@ def render_dual_state_grid(bitboard_val: np.uint64, king_bit: np.uint64, thread_
             elif (current_mask & bitboard_val) != 0:
                 # Find state registration of this asset
                 current_state = coordinate_state_map.get(square_name, "STATIC_REST")
-                
                 typer.stdout.write(f" ")
                 if current_state == "DYNAMIC_CURRENT":
-                    # GLOWING CURRENT: Active vector using high-intensity bold blocks
                     typer.secho("█", fg=typer.colors.GREEN, bg=color_theme, bold=True, reset=False, label="")
                 else:
-                    # UNLIT ASSET: Immutable state using dim, lower-weight textures
                     typer.secho("▞", fg=typer.colors.WHITE, bg=color_theme, dim=True, reset=False, label="")
                 typer.stdout.write(f" ")
             else:
-                # Empty Register
                 bg_char = "▓▓▓" if is_black_square else "░░░"
                 typer.secho(bg_char, fg=color_theme, reset=False, label="")
                 
@@ -118,7 +152,9 @@ def execute_lazy_macro(
         opponent_cycles = data.get("Opponent_Accumulated_Cycles", 0)
         
         thread_list = sorted(list(bridge.thread_registry.keys()))
-        
+        master_clock_cycle = 0
+        thread_list = sorted(list(bridge.thread_registry.keys()))
+                
         for current_thread in thread_list:
             thread_data = bridge.thread_registry[current_thread]
             coord = thread_data["current_coordinate"]
@@ -127,6 +163,7 @@ def execute_lazy_macro(
             
             for target_rank in range(start_rank + 1, 9):
                 next_dest = f"{file_char}{target_rank}"
+                master_clock_cycle += 1
                 
                 # Render the current dual-state framework frame
                 render_dual_state_grid(bridge.system_bitboard, bridge.enemy_king_bit, bridge.thread_registry)
@@ -139,11 +176,12 @@ def execute_lazy_macro(
                 
                 # Execute migration command inside complete_engine logic
                 bridge.execute_clock_cycle(current_thread, next_dest)
-                coord = next_dest
-                
+                current_state = bridge.thread_registry[current_thread]["execution_state"]
+                coord = next_dest       
                 # Simulate an opponent cycle update response on every local move step
                 opponent_cycles += 1
-                
+                log_cycle_to_csv(csv_out, master_clock_cycle, current_thread, next_dest, current_state, opponent_cycles)
+           
                 # Save dashboard file checkpoint data
                 current_blueprint_state = bridge.compile_dashboard_state()
                 current_blueprint_state["Opponent_Accumulated_Cycles"] = opponent_cycles
