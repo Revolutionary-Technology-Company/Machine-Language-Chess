@@ -5,6 +5,7 @@ import numpy as np
 import numba
 import chess
 import typer
+import complete_engine
 
 # Import our high-performance parallel bitboard processing engine
 import complete_engine
@@ -16,6 +17,54 @@ app = typer.Typer(help="MASTER CONTROLLER: INTEGRATED HARDWARE-CHESS ENGINE")
 SILENT_PADDING_MASK = np.uint64(0x0000FFFFFFFF0000) # Ranks 3 & 4 set to 1 (Safe NOP/Padding Zones)
 TERMINAL_HOLD_MASK  = np.uint64(0x8000000000000000) # Square h8 (Bit 63) set to 1 (Infinite Hold Register)
 BASE_GATEWAY_MASK   = np.uint64(0x000000000000FFFF) # Ranks 1 & 2 set to 1 (Core Base Isolation Zone)
+
+@app.command()
+def predict_steer(
+    blueprint: str = typer.Option("dashboard_state.json", "--file", "-f", help="Active layout file"),
+    target_register: str = typer.Option(..., "--target", "-t", help="The favorable register to push the King into (e.g., a4, e4)")
+):
+    """
+    Trajectory Matrix Planner: Evaluates the active promotion metrics and outputs 
+    the exact tactical requirement to force the King off the current loop.
+    """
+    try:
+        with open(blueprint, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            
+        # Bind back into the acceleration engine layer
+        bridge = complete_engine.AdvancedSystemBridge("univac_i")
+        bridge.system_bitboard = np.uint64(int(data["Global_Memory_Bitboard"], 16))
+        bridge.thread_registry = data["Active_Core_Threads"]
+        
+        typer.secho(f"\n🔮 [RUNNING PREDICTIVE ANALYSIS MATRIX] 🔮", fg=typer.colors.CYAN, bold=True)
+        typer.echo(f"[-] Current Active Host King Space : {data['Host_King_Register']}")
+        typer.echo(f"[-] Total Converted Process Tokens: {data['Total_Escalated_Threads']}")
+        typer.echo(f"[-] Intended Favorable Destination : {target_register.upper()}")
+        
+        # Pull the planning vector directly from the engine math
+        planning_directive = bridge.predict_optimal_steering_vector(target_register)
+        
+        typer.secho(f"\n[📊 STRATEGIC DIRECTIVE]:", fg=typer.colors.YELLOW, bold=True)
+        typer.echo(f" {planning_directive}\n")
+        
+    except FileNotFoundError:
+        typer.secho("❌ Error: Target blueprint file missing. Run 'initialize-board' first.", fg=typer.colors.RED)
+
+@app.command()
+def initialize_board(
+    output: str = typer.Option("dashboard_state.json", "--out", "-o", help="Output filename")
+):
+    """Initializes the baseline lab matrix template file."""
+    bridge = complete_engine.AdvancedSystemBridge("univac_i")
+    bridge.allocate_independent_threads()
+    blueprint = bridge.compile_dashboard_state()
+    
+    with open(output, 'w', encoding='utf-8') as f:
+        json.dump(blueprint, f, indent=4)
+    typer.secho(f"✅ Board initialized successfully in: {output}", fg=typer.colors.GREEN)
+
+if __name__ == "__main__":
+    app()
 
 class NvidiaFastMathEngine:
     def __init__(self, local_color: str = "WHITE"):
