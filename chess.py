@@ -18,6 +18,158 @@ SILENT_PADDING_MASK = np.uint64(0x0000FFFFFFFF0000) # Ranks 3 & 4 set to 1 (Safe
 TERMINAL_HOLD_MASK  = np.uint64(0x8000000000000000) # Square h8 (Bit 63) set to 1 (Infinite Hold Register)
 BASE_GATEWAY_MASK   = np.uint64(0x000000000000FFFF) # Ranks 1 & 2 set to 1 (Core Base Isolation Zone)
 
+# NJIT FastMath: 64-bit bitmask identifying all 32 Black squares on a standard layout
+MASK_BLACK_SQUARES = np.uint64(0xAA55AA55AA55AA55)
+
+def get_single_keystroke():
+    """Captures a single raw keyboard character natively across platform environments."""
+    if os.name == 'nt':
+        import msvcrt
+        return msvcrt.getch()
+    else:
+        import tty
+        import termios
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(sys.stdin.fileno())
+            ch = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        return ch
+
+def render_dual_state_grid(bitboard_val: np.uint64, king_bit: np.uint64, thread_registry: dict):
+    """
+    State-Aware Terminal Renderer: Maps the live 64-bit memory layout.
+    DIM TEXT (▞)  = Immutable Rest State (STATIC_REST - 0 Volts)
+    GLOW TEXT (█) = Live Closed Circuit (DYNAMIC_CURRENT - Active Current)
+    """
+    os.system('cls' if os.name == 'nt' else 'clear')
+    
+    typer.secho("   [A] [B] [C] [D] [E] [F] [G] [H]", fg=typer.colors.CYAN, bold=True)
+    typer.echo("  +-------------------------------+ ")
+    
+    # Pre-build lookup for spatial states
+    coordinate_state_map = {}
+    for t_id, data in thread_registry.items():
+        coordinate_state_map[data["current_coordinate"]] = data.get("circuit_state", "STATIC_REST")
+
+    for rank in range(7, -1, -1):
+        row_str = f"{rank + 1} |"
+        for file in range(8):
+            bit_index = (rank * 8) + file
+            current_mask = np.uint64(1 << bit_index)
+            square_name = f"{chr(97 + file)}{rank + 1}"
+            
+            # FastMath: Check square voltage classification
+            is_black_square = (current_mask & MASK_BLACK_SQUARES) != 0
+            color_theme = typer.colors.RED if is_black_square else typer.colors.BLUE
+
+            # Overlay Assets onto Topography with State Differentiation
+            if (current_mask & king_bit) != 0:
+                typer.stdout.write(f" ")
+                typer.secho("♔", fg=typer.colors.YELLOW, bg=color_theme, bold=True, reset=False, label="")
+                typer.stdout.write(f" ")
+            elif (current_mask & bitboard_val) != 0:
+                # Find state registration of this asset
+                current_state = coordinate_state_map.get(square_name, "STATIC_REST")
+                
+                typer.stdout.write(f" ")
+                if current_state == "DYNAMIC_CURRENT":
+                    # GLOWING CURRENT: Active vector using high-intensity bold blocks
+                    typer.secho("█", fg=typer.colors.GREEN, bg=color_theme, bold=True, reset=False, label="")
+                else:
+                    # UNLIT ASSET: Immutable state using dim, lower-weight textures
+                    typer.secho("▞", fg=typer.colors.WHITE, bg=color_theme, dim=True, reset=False, label="")
+                typer.stdout.write(f" ")
+            else:
+                # Empty Register
+                bg_char = "▓▓▓" if is_black_square else "░░░"
+                typer.secho(bg_char, fg=color_theme, reset=False, label="")
+                
+        sys.stdout.write("\033[0m")
+        typer.echo(f"| {rank + 1}")
+        
+    typer.echo("  +-------------------------------+ ")
+    typer.secho("   [A] [B] [C] [D] [E] [F] [G] [H]", fg=typer.colors.CYAN, bold=True)
+    
+    # State Monitor Readout
+    typer.echo("\n[CIRCUIT STATE MONITOR]:")
+    typer.secho(" ▞  DIM CHARACTER   = STATIC_REST (Asset at complete rest; 0V environment noise)", fg=typer.colors.WHITE, dim=True)
+    typer.secho(" █  GLOWING BLOCK   = DYNAMIC_CURRENT (Circuit closed; active vector path streaming)", fg=typer.colors.GREEN, bold=True)
+
+@app.command()
+def execute_lazy_macro(
+    blueprint: str = typer.Option("dashboard_state.json", "--file", "-f", help="Active template path")
+):
+    """
+    Lazy Activation Macro Loop: Cycles through thread entities sequentially. Advances them on 
+    keystroke, tracking clock cycles and transitioning components from static rest to dynamic current.
+    """
+    try:
+        with open(blueprint, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            
+        bridge = complete_engine.AdvancedSystemBridge("univac_i")
+        bridge.system_bitboard = np.uint64(int(data["Global_Memory_Bitboard"], 16))
+        bridge.thread_registry = data["Active_Core_Threads"]
+        
+        # Pull opponent cycle metric or initialize if blank
+        opponent_cycles = data.get("Opponent_Accumulated_Cycles", 0)
+        
+        thread_list = sorted(list(bridge.thread_registry.keys()))
+        
+        for current_thread in thread_list:
+            thread_data = bridge.thread_registry[current_thread]
+            coord = thread_data["current_coordinate"]
+            file_char = coord[0]
+            start_rank = int(coord[1])
+            
+            for target_rank in range(start_rank + 1, 9):
+                next_dest = f"{file_char}{target_rank}"
+                
+                # Render the current dual-state framework frame
+                render_dual_state_grid(bridge.system_bitboard, bridge.enemy_king_bit, bridge.thread_registry)
+                
+                typer.echo(f"\n[📊 SYSTEM CLOCKS]: Total Tracked Opponent Cycles: {opponent_cycles}")
+                typer.secho(f"[*] Focus Pipeline: {current_thread} at register {coord.upper()}", fg=typer.colors.WHITE, bold=True)
+                typer.secho(f"👉 Press any key to step clock -> Close circuit and migrate to {next_dest.upper()}...", fg=typer.colors.YELLOW)
+                
+                get_single_keystroke()
+                
+                # Execute migration command inside complete_engine logic
+                bridge.execute_clock_cycle(current_thread, next_dest)
+                coord = next_dest
+                
+                # Simulate an opponent cycle update response on every local move step
+                opponent_cycles += 1
+                
+                # Save dashboard file checkpoint data
+                current_blueprint_state = bridge.compile_dashboard_state()
+                current_blueprint_state["Opponent_Accumulated_Cycles"] = opponent_cycles
+                
+                with open(blueprint, 'w', encoding='utf-8') as f:
+                    json.dump(current_blueprint_state, f, indent=4)
+                    
+        # Concluding state draw
+        render_dual_state_grid(bridge.system_bitboard, bridge.enemy_king_bit, bridge.thread_registry)
+        typer.secho(f"\n[+] Processing run finalized. All active channels consolidated.", fg=typer.colors.GREEN, bold=True)
+
+    except FileNotFoundError:
+        typer.secho("❌ Blueprint dashboard array missing. Run 'initialize-board' first.", fg=typer.colors.RED)
+
+@app.command()
+def initialize_board(output: str = typer.Option("dashboard_state.json", "--out", "-o", help="Output filename")):
+    """Populates a clean default database layout blueprint to start testing."""
+    bridge = complete_engine.AdvancedSystemBridge("univac_i")
+    bridge.allocate_independent_threads()
+    with open(output, 'w', encoding='utf-8') as f:
+        json.dump(bridge.compile_dashboard_state(), f, indent=4)
+    typer.secho(f"✅ Baseline workspace populated in: {output}", fg=typer.colors.GREEN)
+
+if __name__ == "__main__":
+    app()
+
 @app.command()
 def predict_steer(
     blueprint: str = typer.Option("dashboard_state.json", "--file", "-f", help="Active layout file"),
