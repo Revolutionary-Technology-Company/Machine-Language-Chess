@@ -33,6 +33,145 @@ MASK_SQUARE_H8 = np.uint64(1  Dict:
             "Active_Core_Threads": self.thread_registry
         }
 MASK_SILENT_PADDING = np.uint64(0x0000FFFFFFFF0000) # Ranks 3-4: Safe Standby Zones
+MASK_BLACK_SQUARES = np.uint64(0xAA55AA55AA55AA55)
+
+
+def get_single_keystroke():
+    """Captures a single raw keyboard character natively across platform environments."""
+    if os.name == 'nt':
+        import msvcrt
+        return msvcrt.getch()
+    else:
+        import tty
+        import termios
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(sys.stdin.fileno())
+            ch = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+        return ch
+
+def render_voltage_grid(bitboard_val: np.uint64, king_bit: np.uint64, controlled_side: str = "WHITE"):
+    """
+    Color-Coded Terminal Renderer: Evaluates your exact Square Voltage Truth Table.
+    Voltage 0 (White Square Base) -> Rendered in BLUE text/blocks
+    Voltage 1 (Black Square Base) -> Rendered in RED text/blocks
+    """
+    os.system('cls' if os.name == 'nt' else 'clear')
+    
+    typer.secho("   [A] [B] [C] [D] [E] [F] [G] [H]", fg=typer.colors.CYAN, bold=True)
+    typer.echo("  +-------------------------------+ ")
+    
+    for rank in range(7, -1, -1):
+        row_str = f"{rank + 1} |"
+        for file in range(8):
+            bit_index = (rank * 8) + file
+            current_mask = np.uint64(1 << bit_index)
+            
+            # FastMath: Determine if the underlying physical square is Black
+            is_black_square = (current_mask & MASK_BLACK_SQUARES) != 0
+            
+            # Calculate your exact Voltage Boolean logic (Black Square = Voltage 1, White Square = Voltage 0)
+            voltage = 1 if is_black_square else 0
+            
+            # Establish base background textures based on live voltage states
+            if voltage == 1:
+                square_char = "▓▓▓"  # High Voltage (Red Domain)
+                color_theme = typer.colors.RED
+            else:
+                square_char = "░░░"  # Low Voltage (Blue Domain)
+                color_theme = typer.colors.BLUE
+
+            # Overlay Active Assets over the Voltage Topography
+            if (current_mask & king_bit) != 0:
+                # Host CPU Piece
+                typer.stdout.write(f" ")
+                typer.secho("♔", fg=typer.colors.YELLOW, bg=color_theme, reset=False, label="")
+                typer.stdout.write(f" ")
+            elif (current_mask & bitboard_val) != 0:
+                # Converted Local Thread Asset
+                typer.stdout.write(f" ")
+                typer.secho("█", fg=typer.colors.GREEN, bg=color_theme, reset=False, label="")
+                typer.stdout.write(f" ")
+            else:
+                # Empty Register displaying its raw voltage texture
+                typer.secho(square_char, fg=color_theme, reset=False, label="")
+                
+        # Reset colors at the end of the rank line
+        sys.stdout.write("\033[0m")
+        typer.echo(f"| {rank + 1}")
+        
+    typer.echo("  +-------------------------------+ ")
+    typer.secho("   [A] [B] [C] [D] [E] [F] [G] [H]", fg=typer.colors.CYAN, bold=True)
+    
+    # Print the System Voltage Dashboard Metrics
+    typer.echo("\n[VOLTAGE SYSTEM LOGS]:")
+    typer.secho(" ░░░ BLUE BACKGROUND = Voltage State: 0 (White Grid Matrix Base)", fg=typer.colors.BLUE)
+    typer.secho(" ▓▓▓ RED BACKGROUND  = Voltage State: 1 (Black Grid Matrix Base)", fg=typer.colors.RED)
+    typer.secho(" █   GREEN CHAR      = Converted Persistent Process Thread Asset", fg=typer.colors.GREEN)
+
+@app.command()
+def live_voltage_macro(
+    blueprint: str = typer.Option("dashboard_state.json", "--file", "-f", help="Active state template path")
+):
+    """
+    Interactive Voltage Macro: Advances local thread vectors on every keystroke, 
+    dynamically tracking shifting square voltage and printing real-time maps.
+    """
+    try:
+        with open(blueprint, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            
+        bridge = complete_engine.AdvancedSystemBridge("univac_i")
+        bridge.system_bitboard = np.uint64(int(data["Global_Memory_Bitboard"], 16))
+        bridge.thread_registry = data["Active_Core_Threads"]
+        
+        thread_list = sorted(list(bridge.thread_registry.keys()))
+        
+        for current_thread in thread_list:
+            thread_data = bridge.thread_registry[current_thread]
+            coord = thread_data["current_coordinate"]
+            file_char = coord[0]
+            start_rank = int(coord[1])
+            
+            for target_rank in range(start_rank + 1, 9):
+                next_dest = f"{file_char}{target_rank}"
+                
+                # Render the live color-coded voltage matrix frame
+                render_voltage_grid(bridge.system_bitboard, bridge.enemy_king_bit)
+                
+                typer.secho(f"\n[*] Active Target: {current_thread} at register {coord.upper()}", fg=typer.colors.WHITE, bold=True)
+                typer.secho(f"👉 Strike any keyboard key to advance to register address {next_dest.upper()}...", fg=typer.colors.YELLOW)
+                
+                get_single_keystroke()
+                
+                # Commit the move to trigger data shift
+                bridge.execute_clock_cycle(current_thread, next_dest)
+                coord = next_dest
+                
+                with open(blueprint, 'w', encoding='utf-8') as f:
+                    json.dump(bridge.compile_dashboard_state(), f, indent=4)
+                    
+        # Final display update
+        render_voltage_grid(bridge.system_bitboard, bridge.enemy_king_bit)
+        typer.secho("\n[+] System Optimization Cycle Complete. Voltage states balanced.", fg=typer.colors.GREEN, bold=True)
+
+    except FileNotFoundError:
+        typer.secho("❌ Blueprint database missing. Initialize using 'initialize-board' command first.", fg=typer.colors.RED)
+
+@app.command()
+def initialize_board(output: str = typer.Option("dashboard_state.json", "--out", "-o", help="Output filename")):
+    """Populates a clean default database layout blueprint to start testing."""
+    bridge = complete_engine.AdvancedSystemBridge("univac_i")
+    bridge.allocate_independent_threads()
+    with open(output, 'w', encoding='utf-8') as f:
+        json.dump(bridge.compile_dashboard_state(), f, indent=4)
+    typer.secho(f"✅ Baseline workspace populated in: {output}", fg=typer.colors.GREEN)
+
+if __name__ == "__main__":
+    app()
 
 # Global Alphanumeric Coordinate to Bit Index Map
 SQUARES = {f"{chr(97+f)}{r+1}": (r * 8) + f for r in range(8) for f in range(8)}
