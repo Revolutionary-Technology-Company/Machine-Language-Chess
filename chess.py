@@ -6,6 +6,11 @@ import numba
 import chess
 import typer
 
+# Import our high-performance parallel bitboard processing engine
+import complete_engine
+
+app = typer.Typer(help="👑 MASTER CONTROLLER: INTEGRATED HARDWARE-CHESS ENGINE 👑")
+
 # NJIT FastMath: Pure bitmask constants mapping the 64-character matrix grid.
 # Built using 64-bit unsigned integers for instantaneous hardware logic routing.
 SILENT_PADDING_MASK = np.uint64(0x0000FFFFFFFF0000) # Ranks 3 & 4 set to 1 (Safe NOP/Padding Zones)
@@ -143,6 +148,78 @@ import typer
 
 # Initialize the Typer CLI app context for the user dashboard
 app = typer.Typer(help="👑 PRODUCTION CHESS-TO-MACHINE ARCHITECTURE PLATFORM 👑")
+
+def render_terminal_ascii_grid(bitboard_val: np.uint64):
+    """
+    NJIT FastMath Visualization Layer: Translates a raw 64-bit unsigned 
+    integer matrix into a live 8x8 graphical ASCII display panel.
+    """
+    typer.secho("\n   [A] [B] [C] [D] [E] [F] [G] [H]", fg=typer.colors.CYAN, bold=True)
+    typer.echo("  +-------------------------------+ ")
+    
+    # Process the board matrix from Rank 8 (Top) down to Rank 1 (Bottom)
+    for rank in range(7, -1, -1):
+        row_str = f"{rank + 1} |"
+        for file in range(8):
+            bit_index = (rank * 8) + file
+            # Isolate the specific register bit using a logical AND mask
+            bit_state = (bitboard_val >> np.uint64(bit_index)) & np.uint64(1)
+            
+            if bit_state == 1:
+                # Active Thread / Data Payload Present
+                row_str += "  █ "
+            else:
+                # Empty Memory Register / Low Voltage State
+                row_str += "  . "
+                
+        row_str += f"| {rank + 1}"
+        typer.echo(row_str)
+        
+    typer.echo("  +-------------------------------+ ")
+    typer.secho("   [A] [B] [C] [D] [E] [F] [G] [H]\n", fg=typer.colors.CYAN, bold=True)
+
+@app.command()
+def run_simulation(
+    arch: str = typer.Option("univac_i", "--arch", "-a", help="Target profile: univac_i, x86_legacy, industrial_plc"),
+    steps: int = typer.Option(5, "--steps", "-s", help="Number of operational clock cycles to simulate")
+):
+    """
+    Master Bridge Loop: Spawns the Advanced System Bridge from complete_engine, 
+    tracks entities, and passes execution vectors down the fastmath pipeline.
+    """
+    typer.secho(f"⚡ Booting Master Controller Pipeline via complete_engine...", fg=typer.colors.MAGENTA, bold=True)
+    
+    # Instantiate the engine directly from complete_engine.py
+    bridge = complete_engine.AdvancedSystemBridge(arch)
+    bridge.allocate_independent_threads()
+    
+    current_state = bridge.compile_dashboard_state()
+    bitboard_value = np.uint64(int(current_state["Global_Memory_Bitboard"], 16))
+    
+    typer.echo(f"[*] Core Initialized. System Type: {current_state['Description']}")
+    typer.echo(f"[*] Rendering Initial Memory Register Topography:")
+    
+    # Render the initial board using our new ASCII visualization function
+    render_terminal_ascii_grid(bitboard_value)
+    
+    # Simulate step-by-step thread movement through the pipeline
+    test_moves = [("THREAD_CORE_0x04_E", "e4"), ("THREAD_CORE_0x03_D", "d4")]
+    
+    for i, (thread, target) in enumerate(test_moves[:steps]):
+        typer.secho(f"[CLOCK CYCLE {i+1}]: Dispatching vector shift command...", fg=typer.colors.YELLOW)
+        
+        # Pass commands down to the core engine logic
+        if bridge.execute_clock_cycle(thread, target):
+            updated_state = bridge.compile_dashboard_state()
+            new_bitboard = np.uint64(int(updated_state["Global_Memory_Bitboard"], 16))
+            
+            # Print updated binary map
+            render_terminal_ascii_grid(new_bitboard)
+            typer.echo(f" -> Thread {thread} state changed to: {updated_state['Active_Core_Threads'][thread]['execution_state']}")
+            typer.echo(f" -> Current Binary Stream Hex: {updated_state['Compiled_Machine_Bytecode_Stream']}\n")
+
+if __name__ == "__main__":
+    app()
 
 # =====================================================================
 # 1. THE COMPLETE 64-BIT FASTMATH BITBOARD MATRIX
