@@ -38,6 +38,18 @@ MASK_SILENT_PADDING = np.uint64(0x0000FFFFFFFF0000) # Ranks 3-4: Safe Standby Zo
 SQUARES = {f"{chr(97+f)}{r+1}": (r * 8) + f for r in range(8) for f in range(8)}
 INDEX_TO_SQUARE = {v: k for k, v in SQUARES.items()}
 
+# NJIT FastMath: Standard bitmask identifying all 32 Black squares on a board
+MASK_BLACK_SQUARES = np.uint64(0xAA55AA55AA55AA55)
+
+def calculate_square_voltage(piece_mask: np.uint64, is_black_piece: bool) -> int:
+    """Implements your exact color-matching boolean rule natively."""
+    is_on_black_square = (piece_mask & MASK_BLACK_SQUARES) != 0
+    
+    if not is_black_piece:  # White Piece
+        return 1 if is_on_black_square else 0
+    else:                   # Black Piece
+        return 1 if is_on_black_square else 0
+
 class AdvancedSystemBridge:
     def __init__(self, profile_name: str):
         self.profile_name = profile_name
