@@ -64,5 +64,3 @@ This table defines how the core system engine evaluates and processes different 
 | 0 | 0 | 0 | 0 | 0 | SYSTEM DEADLOCK: No actionable vectors. Pipeline drops to a protective standby loop. |
 
 *(Note: X indicates a "Don't Care" state where the variable's value does not alter the output due to higher-priority overrides).*
-
-If you want to integrate this mathematical model into the codebase, we can write a Boolean evaluation class in `chess.py` to filter legal moves, or design a structural schematic diagram of these hardware logic gates. What would be the next step for the repository?
