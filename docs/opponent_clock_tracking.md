@@ -7,7 +7,9 @@ This module establishes the verification protocols and sequential logic framewor
 To accurately track when the opponent's background software architecture attempts to write or execute an operation, the engine routes parameters through a 3-input AND logic gate network.
 
 ΔS (State Shift Detected)  ──┐
+
 TO (Turn Orientation Flag) ──┼──> [ AND GATE ] ──> Output: CLK_O(Clock Tripped)
+
 VM (Vector Matrix Match)   ──┘
 
 ### Input Equations
