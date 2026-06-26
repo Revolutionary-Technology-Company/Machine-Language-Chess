@@ -9,7 +9,7 @@ import typer
 # Import our high-performance parallel bitboard processing engine
 import complete_engine
 
-app = typer.Typer(help="👑 MASTER CONTROLLER: INTEGRATED HARDWARE-CHESS ENGINE 👑")
+app = typer.Typer(help="MASTER CONTROLLER: INTEGRATED HARDWARE-CHESS ENGINE")
 
 # NJIT FastMath: Pure bitmask constants mapping the 64-character matrix grid.
 # Built using 64-bit unsigned integers for instantaneous hardware logic routing.
