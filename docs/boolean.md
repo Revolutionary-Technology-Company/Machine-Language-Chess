@@ -57,10 +57,15 @@ $$Y = \bar{K} \cdot (A + P + E + R)$$
 This table defines how the core system engine evaluates and processes different configurations of inputs during a clock cycle:
 
 | K (King Threat) | A (Breach) | $P \lor E$ (Infiltrate) | R (Risk Target) | Y (System Output) | System Execution State |
+
 | 1 | X | X | X | 0 | CRITICAL FAULT: Move rejected. Triggers illegal check/checkmate flag. Cloaking lost. |
+
 | 0 | 1 | X | X | 1 | GATEWAY ISOLATION: System executes immediate firewall defense protocol on 1st/2nd rank. |
+
 | 0 | 0 | 1 | X | 1 | CACHE/THREAD INFILTRATION: Open memory pipeline. Local pawns advance down files. |
+
 | 0 | 0 | 0 | 1 | 1 | ASSET PRUNING: Active deletion of enemy high-risk variables based on threat matrix. |
+
 | 0 | 0 | 0 | 0 | 0 | SYSTEM DEADLOCK: No actionable vectors. Pipeline drops to a protective standby loop. |
 
 *(Note: X indicates a "Don't Care" state where the variable's value does not alter the output due to higher-priority overrides).*
