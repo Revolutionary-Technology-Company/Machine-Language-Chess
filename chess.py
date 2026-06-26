@@ -1,6 +1,10 @@
+import sys
+import json
+from typing import Dict, List, Optional
 import numpy as np
 import numba
 import chess
+import typer
 
 # NJIT FastMath: Pure bitmask constants mapping the 64-character matrix grid.
 # Built using 64-bit unsigned integers for instantaneous hardware logic routing.
@@ -131,6 +135,149 @@ if __name__ == "__main__":
     lane, vector, is_promo = cuda_engine.filter_noise_and_optimize()
     cuda_engine.execute_warp_state_update(lane, vector, is_promo)
 
+import sys
+import json
+from typing import Dict, List, Optional
+import numpy as np
+import typer
+
+# Initialize the Typer CLI app context for the user dashboard
+app = typer.Typer(help="👑 PRODUCTION CHESS-TO-MACHINE ARCHITECTURE PLATFORM 👑")
+
+# =====================================================================
+# 1. THE COMPLETE 64-BIT FASTMATH BITBOARD MATRIX
+# =====================================================================
+# Static allocation of all 64 coordinates to exact bit indices (0 to 63)
+SQUARES = {
+    f"{chr(97+f)}{r+1}": (r * 8) + f for r in range(8) for f in range(8)
+}
+
+# Pre-compiled high-throughput logic masks using unsigned 64-bit integers
+MASK_RANK_1_2 = np.uint64(0x000000000000FFFF)  # Base Gateway / Input Buffer
+MASK_RANK_3_4 = np.uint64(0x0000FFFFFFFF0000)  # Noise-Free / Silent Padding Zone
+MASK_RANK_7_8 = np.uint64(0xFFFF000000000000)  # Privilege Escalation Domain
+MASK_SQUARE_H8 = np.uint64(1  bool:
+        """Executes state transition, compiles real bytecode, and alters privilege states."""
+        if thread_id not in self.thread_registry:
+            return False
+            
+        thread = self.thread_registry[thread_id]
+        old_coord = thread["current_coordinate"]
+        
+        # FastMath Bitboard Update
+        old_mask = np.uint64(1 << SQUARES[old_coord])
+        new_mask = np.uint64(1 << SQUARES[destination])
+        
+        self.global_bitboard &= ~old_mask
+        self.global_bitboard |= new_mask
+        
+        # Bytecode Generation
+        target_bytecode = self.profile["opcodes"][destination]
+        
+        # Core Thread State Evolution
+        thread["current_coordinate"] = destination
+        thread["bitmask_hex"] = hex(new_mask)
+        thread["allocated_bytecode_hex"] = target_bytecode.hex().upper()
+        
+        # Evaluate Target Matrix Overlays
+        if (new_mask & MASK_RANK_3_4) != 0:
+            thread["execution_state"] = "SILENT_NOP_PADDING"
+        elif (new_mask & MASK_SQUARE_H8) != 0:
+            thread["execution_state"] = "INFINITE_TERMINAL_HOLD"
+        else:
+            thread["execution_state"] = "ACTIVE_EXECUTION"
+            
+        if (new_mask & MASK_RANK_7_8) != 0:
+            thread["privilege_level"] = "ROOT_SYSTEM_QUEEN"
+            
+        return True
+
+    def compile_full_binary_stream(self) -> str:
+        """Assembles all active threads into a single runnable raw machine language byte stream."""
+        binary_stream = bytearray()
+        for thread in self.thread_registry.values():
+            hex_str = thread["allocated_bytecode_hex"]
+            binary_stream.extend(bytes.fromhex(hex_str))
+        return binary_stream.hex().upper()
+
+    def generate_dashboard_state(self) -> Dict:
+        """Flushes system matrices into a clean dashboard json layout."""
+        return {
+            "System_Architecture_Profile": self.profile_name,
+            "Global_Memory_Bitboard": hex(self.global_bitboard),
+            "Compiled_Machine_Bytecode_Stream": self.compile_binary_stream(),
+            "Flags": {
+                "Silent_Zone_Occupied": bool((self.global_bitboard & MASK_RANK_3_4) != 0),
+                "Escalation_Zone_Active": bool((self.global_bitboard & MASK_RANK_7_8) != 0),
+                "Infinite_Loop_Locked": bool((self.global_bitboard & MASK_SQUARE_H8) != 0)
+            },
+            "Active_Core_Threads": self.thread_registry
+        }
+
+    def compile_binary_stream(self) -> str:
+        return self.compile_full_binary_stream()
+
+# =====================================================================
+# 4. INTERACTIVE TYPER DASHBOARD & TEMPLATE CONTROLLER
+# =====================================================================
+@app.command()
+def build_profile(
+    architecture: str = typer.Option("univac_i", "--arch", "-a", help="Target code architecture: univac_i, x86_legacy, industrial_plc"),
+    output: str = typer.Option("dashboard_state.json", "--out", "-o", help="Destination path for the compiled planning template")
+):
+    """
+    Automated Generation Protocol: Discovers the selected computer era, registers 
+    all 8 threads uniquely, and saves an active configuration blueprint.
+    """
+    typer.secho(f"🔮 Initializing System Compiler Profile: {architecture.upper()}", fg=typer.colors.CYAN, bold=True)
+    
+    bridge = ProductionSystemBridge(architecture)
+    bridge.initialize_local_threads()
+    
+    blueprint = bridge.generate_dashboard_state()
+    
+    with open(output, 'w', encoding='utf-8') as f:
+        json.dump(blueprint, f, indent=4)
+        
+    typer.secho(f"🏆 Success! Complete machine-runnable blueprint saved to: {output}", fg=typer.colors.GREEN)
+    typer.echo(f"[*] Initial Compiled Bytecode Stream: {blueprint['Compiled_Machine_Bytecode_Stream']}")
+
+@app.command()
+def step_cycle(
+    blueprint_file: str = typer.Option("dashboard_state.json", "--file", "-f", help="Target planning template to update"),
+    thread: str = typer.Option(..., "--thread", "-t", help="The isolated thread entity ID to shift (e.g., THREAD_CORE_0x04_E)"),
+    destination: str = typer.Option(..., "--dest", "-d", help="Specific target coordinate register to activate (e.g., e4)")
+):
+    """
+    Executes a physical move cycle. Processes bit shifts, generates native binary 
+    bytecode for the coordinate, and saves the updated system state.
+    """
+    try:
+        with open(blueprint_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            
+        arch = data["System_Architecture_Profile"]
+        bridge = ProductionSystemBridge(arch)
+        bridge.global_bitboard = np.uint64(int(data["Global_Memory_Bitboard"], 16))
+        bridge.thread_registry = data["Active_Core_Threads"]
+        
+        if bridge.process_cycle_shift(thread, destination.lower()):
+            updated_blueprint = bridge.generate_dashboard_state()
+            
+            with open(blueprint_file, 'w', encoding='utf-8') as f:
+                json.dump(updated_blueprint, f, indent=4)
+                
+            typer.secho(f"✅ Cycle Committed! Thread {thread} shifted to {destination.upper()}.", fg=typer.colors.GREEN)
+            typer.echo(f" -> Activated Bytecode: {updated_blueprint['Active_Core_Threads'][thread]['allocated_bytecode_hex']}")
+            typer.echo(f" -> Full Unified Bytecode Stream: {updated_blueprint['Compiled_Machine_Bytecode_Stream']}")
+        else:
+            typer.secho(f"❌ Error: Thread ID '{thread}' could not be processed.", fg=typer.colors.RED)
+            
+    except FileNotFoundError:
+        typer.secho(f"❌ Target template file missing. Run 'build-profile' first.", fg=typer.colors.RED)
+
+if __name__ == "__main__":
+    app()
 
 class CustomStrategyEngine:
     def __init__(self, board: chess.Board, color: chess.Color):
