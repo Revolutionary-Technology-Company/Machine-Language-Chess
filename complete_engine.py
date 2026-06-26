@@ -35,6 +35,16 @@ MASK_SQUARE_H8 = np.uint64(1  Dict:
 MASK_SILENT_PADDING = np.uint64(0x0000FFFFFFFF0000) # Ranks 3-4: Safe Standby Zones
 MASK_BLACK_SQUARES = np.uint64(0xAA55AA55AA55AA55)
 
+class LazyActivationEngine:
+    def __init__(self):
+        self.system_bitboard = np.uint64(0)
+        self.hardware_registry: Dict[str, Dict] = {}
+        
+    def register_static_asset(self, entity_id: str, coordinate: str):
+        """Initializes a piece in a pure Immutable Rest State. It causes zero environment noise."""
+        bit_index = (int(coordinate[1]) - 1) * 8 + (ord(coordinate[0]) - 97)
+        bit_mask = np.uint64(1  State changed from STATIC_REST to DYNAMIC_CURRENT.")
+        print(f" -> Dynamic Voltage Grid Output: Vector Active ({thread['active_voltage_output']}V)")
 
 def get_single_keystroke():
     """Captures a single raw keyboard character natively across platform environments."""
