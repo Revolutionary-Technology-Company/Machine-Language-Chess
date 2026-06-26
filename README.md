@@ -42,6 +42,22 @@ Every rule in the core chess rulebook directly maps to standard low-level CPU op
 
 The logical boundary of the network is defined by the 8th rank. The system treats pawn advancement as a progression through network layers.
 
+[ Low-Privilege Entry ] ──> [ Defensive Navigation ] ──> [ Privilege Escalation ] ──> [ Arbitrary Code Execution ]
+(Pawn Spawn)                (Board Files)                (8th Rank Grid)              (Queen Promotion)
+
+1. **Low-Privilege Entry (The Pawn)**: An asset with severely restricted execution rights (moves 1 square forward, zero lateral or backward permissions).
+2. **Defensive Navigation**: The asset evades security layers (opposing pieces) to traverse the memory field.
+3. **Privilege Escalation (The 8th Rank)**: Stepping onto the final hardware boundary triggers an automatic permission upgrade built into the system architecture.
+4. **Arbitrary Code Execution (Pawn Promotion)**: The low-privilege token is dynamically reallocated as a high-powered object (the Queen). This grants the system asset maximum operational freedom, unlimited vector movement, and the direct capacity to override or terminate the core operating system (the enemy King).
+
+---
+
+## 4. Theoretical Proof: Turing Completeness
+
+This project builds on the computer science consensus that generalized chess on an $N \times N$ board is **Turing Complete**. 
+
+Because any algorithmic logic, program flow, or machine code routine can be fully simulated using only the pieces and grid mechanics of chess, a game of chess is functionally indistinguishable from a running computer program. Therefore, designing a definitive winning matrix in chess is mathematically equivalent to writing code designed to exploit and terminate an opposing system thread.
+
 ## 5. Tactical Exploitation Profile (Continuous Infiltration Campaign)
 
 This module implements a custom threat matrix designed to pivot the runtime objective from standard termination (Checkmate) to a **Persistent Kernel Infiltration**. The system treats the opposing infrastructure as a host environment to be harvested, prioritizing long-term asset generation over game-ending states.
